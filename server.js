@@ -9,14 +9,7 @@ const wss = new WebSocket.Server({ server });
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-const TEXTS = [
-  "The quick brown fox jumps over the lazy dog and decides to take a long peaceful nap in the warm afternoon sun.",
-  "Programming is the art of telling another human being what one wants the computer to do. Start simple and build from there.",
-  "Speed is not everything in a typing race, but muscle memory sure does help when your fingers know exactly where each key lives.",
-  "The only way to learn a new programming language is by writing programs in it. Every expert was once a complete beginner.",
-  "To be or not to be, that is the question. Whether it is nobler in the mind to suffer the slings and arrows of outrageous fortune.",
-  "A good programmer looks both ways before crossing a one way street. Always test your assumptions and never trust user input.",
-];
+const TEXTS = require('./quotes.json').map(q => q.quote.trim());
 
 const COUNTDOWN_SECS = 5;
 const RESULTS_DURATION_MS = 12000;

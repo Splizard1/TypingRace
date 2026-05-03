@@ -22,7 +22,8 @@ const COUNTDOWN_SECS = 5;
 const RESULTS_DURATION_MS = 12000;
 const MIN_PLAYERS = 2;
 
-let players = new Map(); // ws -> player
+let players = new Map(); // ws -> player (active in current/upcoming race)
+let pending = new Map(); // ws -> player (joined mid-race, waiting for next lobby)
 let gameState = 'lobby';
 let currentText = '';
 let countdownTimer = null;
@@ -46,7 +47,7 @@ function lobbyPayload() {
     type: 'lobby_update',
     gameState,
     countdown: gameState === 'countdown' ? countdownVal : null,
-    players: [...players.values()].map(p => ({ id: p.id, name: p.name })),
+    players: [...players.values()].map(p => ({ id: p.id, name: p.name, ready: p.ready })),
   };
 }
 
@@ -61,6 +62,12 @@ function racePayload() {
       finished: p.finished,
     })),
   };
+}
+
+function checkAllReady() {
+  const allReady = players.size >= MIN_PLAYERS && [...players.values()].every(p => p.ready);
+  if (allReady && gameState === 'lobby') startCountdown();
+  else if (!allReady && gameState === 'countdown') cancelCountdown();
 }
 
 function startCountdown() {
@@ -93,7 +100,7 @@ function startRace() {
   gameState = 'racing';
   currentText = TEXTS[Math.floor(Math.random() * TEXTS.length)];
   raceStartTime = Date.now();
-  players.forEach(p => { p.progress = 0; p.finished = false; p.finishTime = null; });
+  players.forEach(p => { p.progress = 0; p.finished = false; p.finishTime = null; p.ready = false; });
   broadcast({
     type: 'race_start',
     text: currentText,
@@ -123,9 +130,10 @@ function endRace() {
 
   setTimeout(() => {
     if (gameState !== 'ended') return;
+    pending.forEach((p, ws) => players.set(ws, p));
+    pending.clear();
     gameState = 'lobby';
     broadcast(lobbyPayload());
-    if (players.size >= MIN_PLAYERS) startCountdown();
   }, RESULTS_DURATION_MS);
 }
 
@@ -134,7 +142,7 @@ function checkAllFinished() {
 }
 
 wss.on('connection', ws => {
-  const player = { id: ++idCounter, name: null, progress: 0, finished: false, finishTime: null };
+  const player = { id: ++idCounter, name: null, progress: 0, finished: false, finishTime: null, ready: false };
   send(ws, { type: 'hello', id: player.id });
 
   ws.on('message', raw => {
@@ -144,21 +152,22 @@ wss.on('connection', ws => {
     if (msg.type === 'join') {
       if (typeof msg.name !== 'string' || !msg.name.trim()) return;
       player.name = msg.name.trim().slice(0, 20);
-      players.set(ws, player);
 
-      if (gameState === 'racing') {
-        send(ws, {
-          type: 'race_start',
-          text: currentText,
-          late: true,
-          players: [...players.values()].map(p => ({
-            id: p.id, name: p.name, progress: p.progress, finished: p.finished,
-          })),
-        });
+      if (gameState === 'racing' || gameState === 'ended') {
+        pending.set(ws, player);
+        send(ws, { type: 'waiting' });
       } else {
+        players.set(ws, player);
         broadcast(lobbyPayload());
-        if (players.size >= MIN_PLAYERS && gameState === 'lobby') startCountdown();
       }
+      return;
+    }
+
+    if (msg.type === 'ready') {
+      if (!player.name || gameState === 'racing') return;
+      player.ready = !player.ready;
+      checkAllReady();
+      broadcast(lobbyPayload());
       return;
     }
 
@@ -177,10 +186,10 @@ wss.on('connection', ws => {
   });
 
   ws.on('close', () => {
+    pending.delete(ws);
     players.delete(ws);
-    if (gameState === 'countdown' && players.size < MIN_PLAYERS) {
-      cancelCountdown();
-    } else if (gameState === 'lobby') {
+    if (gameState === 'lobby' || gameState === 'countdown') {
+      checkAllReady();
       broadcast(lobbyPayload());
     } else if (gameState === 'racing') {
       broadcast(racePayload());

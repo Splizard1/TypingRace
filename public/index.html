@@ -72,6 +72,10 @@
     }
     .btn:hover { background: #6d76e5; }
     .btn:active { transform: scale(0.98); }
+    .btn.is-ready { background: #1e3a2f; color: #4ade80; border: 1px solid #4ade80; }
+    .btn.is-ready:hover { background: #17302600; }
+    .chip.ready { border-color: #4ade80; color: #4ade80; }
+    .chip.ready .dot { background: #4ade80; }
 
     /* Lobby */
     .section-label {
@@ -258,6 +262,18 @@
       <div id="lobby-players"></div>
     </div>
     <div class="lobby-status" id="lobby-status"></div>
+    <button class="btn" id="ready-btn" style="margin-top:20px">✓ Ready Up</button>
+  </div>
+</div>
+
+<!-- Waiting screen -->
+<div class="screen hidden" id="waiting-screen">
+  <h1>⌨️ Typing Race</h1>
+  <p class="subtitle">Race in progress</p>
+  <div class="card" style="text-align:center; padding: 40px 28px;">
+    <div style="font-size:2.5rem; margin-bottom:16px;">⏳</div>
+    <div style="font-weight:600; font-size:1.1rem; margin-bottom:8px;">Race in progress</div>
+    <div style="color:#475569; font-size:0.875rem;">Hang tight — you'll be added to the next lobby automatically.</div>
   </div>
 </div>
 
@@ -302,6 +318,7 @@
   const screens = {
     join: $('join-screen'),
     lobby: $('lobby-screen'),
+    waiting: $('waiting-screen'),
     race: $('race-screen'),
     results: $('results-screen'),
   };
@@ -313,6 +330,7 @@
   const MIN_PLAYERS = 2;
 
   let myId = null;
+  let myReady = false;
   let targetText = '';
   let raceStart = null;
   let myFinished = false;
@@ -335,6 +353,10 @@
       myId = msg.id;
     },
 
+    waiting() {
+      show('waiting');
+    },
+
     lobby_update(msg) {
       clearInterval(returnTimer);
       show('lobby');
@@ -345,13 +367,20 @@
       $('lobby-subtitle').textContent = counting ? 'Get ready!' : 'Waiting for players';
 
       const need = MIN_PLAYERS - msg.players.length;
+      const readyCount = msg.players.filter(p => p.ready).length;
       $('lobby-status').textContent = need > 0
         ? `Waiting for ${need} more player${need > 1 ? 's' : ''}…`
-        : counting ? '' : 'Starting soon!';
+        : counting ? '' : `${readyCount} / ${msg.players.length} ready`;
+
+      const me = msg.players.find(p => p.id === myId);
+      myReady = me?.ready ?? false;
+      const readyBtn = $('ready-btn');
+      readyBtn.classList.toggle('is-ready', myReady);
+      readyBtn.textContent = myReady ? '✗ Cancel Ready' : '✓ Ready Up';
 
       $('lobby-players').innerHTML = msg.players.map(p => `
-        <span class="chip${p.id === myId ? ' me' : ''}">
-          <span class="dot"></span>${p.name}${p.id === myId ? ' (you)' : ''}
+        <span class="chip${p.id === myId ? ' me' : ''}${p.ready ? ' ready' : ''}">
+          <span class="dot"></span>${p.name}${p.id === myId ? ' (you)' : ''} ${p.ready ? '✓' : ''}
         </span>
       `).join('');
     },
@@ -363,6 +392,7 @@
       targetText = msg.text;
       raceStart = Date.now();
       myFinished = false;
+      myReady = false;
       correctCount = 0;
       lastSent = -1;
 
@@ -384,13 +414,14 @@
 
     race_end(msg) {
       clearInterval(wpmTimer);
-      showResults(msg.results);
+      if (!screens.race.classList.contains('hidden')) showResults(msg.results);
     },
   };
 
   // Join
   $('join-btn').addEventListener('click', doJoin);
   $('name-input').addEventListener('keydown', e => e.key === 'Enter' && doJoin());
+  $('ready-btn').addEventListener('click', () => ws.send(JSON.stringify({ type: 'ready' })));
 
   function doJoin() {
     const name = $('name-input').value.trim();

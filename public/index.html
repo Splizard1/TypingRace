@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Typing Race</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d0d14;
+      color: #e2e8f0;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: #818cf8;
+      letter-spacing: -0.5px;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      color: #475569;
+      font-size: 0.875rem;
+      margin-bottom: 24px;
+    }
+
+    .screen { width: 100%; max-width: 680px; }
+    .hidden { display: none !important; }
+
+    .card {
+      background: #13131f;
+      border: 1px solid #1e1e30;
+      border-radius: 16px;
+      padding: 28px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      background: #0d0d14;
+      border: 2px solid #1e1e30;
+      border-radius: 10px;
+      color: #e2e8f0;
+      font-size: 1rem;
+      padding: 12px 16px;
+      outline: none;
+      transition: border-color 0.15s;
+      margin-bottom: 12px;
+    }
+    input[type="text"]:focus { border-color: #818cf8; }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      background: #818cf8;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .btn:hover { background: #6d76e5; }
+    .btn:active { transform: scale(0.98); }
+
+    /* Lobby */
+    .section-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #334155;
+      margin-bottom: 10px;
+    }
+    .player-chips { margin-top: 20px; }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #0d0d14;
+      border: 1px solid #1e1e30;
+      border-radius: 100px;
+      padding: 6px 14px;
+      font-size: 0.875rem;
+      margin: 4px;
+    }
+    .chip .dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; }
+    .chip.me { border-color: #818cf8; color: #818cf8; }
+    .chip.me .dot { background: #818cf8; }
+
+    .countdown-wrap { text-align: center; padding: 12px 0 20px; }
+    .countdown-num {
+      font-size: 5rem;
+      font-weight: 900;
+      color: #818cf8;
+      line-height: 1;
+      animation: pulse 1s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.75; transform: scale(0.93); }
+    }
+    .countdown-label { color: #475569; margin-top: 8px; font-size: 0.875rem; }
+    .lobby-status { text-align: center; color: #475569; font-size: 0.875rem; margin-top: 16px; }
+
+    /* Race */
+    .race-header { display: flex; gap: 12px; margin-bottom: 16px; }
+    .stat-box {
+      flex: 1;
+      background: #13131f;
+      border: 1px solid #1e1e30;
+      border-radius: 12px;
+      padding: 12px 16px;
+      text-align: center;
+    }
+    .stat-val { font-size: 1.6rem; font-weight: 700; color: #818cf8; }
+    .stat-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1.5px; color: #334155; margin-top: 2px; }
+
+    .text-display {
+      background: #13131f;
+      border: 2px solid #1e1e30;
+      border-radius: 14px;
+      padding: 22px 24px;
+      font-family: 'Courier New', monospace;
+      font-size: 1.15rem;
+      line-height: 2;
+      letter-spacing: 0.03em;
+      cursor: text;
+      margin-bottom: 20px;
+      transition: border-color 0.15s;
+      user-select: none;
+      position: relative;
+      word-break: break-word;
+    }
+    .text-display.focused { border-color: #4a4a6e; }
+    .text-display span { color: #3a3a5e; }
+    .text-display span.correct { color: #4ade80; }
+    .text-display span.wrong { color: #f87171; background: rgba(248,113,113,0.15); border-radius: 2px; }
+    .text-display span.cursor {
+      color: #e2e8f0;
+      border-left: 2px solid #818cf8;
+      animation: blink 1s step-end infinite;
+      margin-left: -1px;
+    }
+    @keyframes blink {
+      0%, 100% { border-color: #818cf8; }
+      50% { border-color: transparent; }
+    }
+    .click-hint {
+      position: absolute;
+      bottom: 8px;
+      right: 12px;
+      font-size: 0.7rem;
+      color: #1e1e30;
+      font-family: system-ui, sans-serif;
+      pointer-events: none;
+    }
+
+    .finished-banner {
+      text-align: center;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #4ade80;
+      padding: 12px 16px;
+      background: rgba(74,222,128,0.07);
+      border: 1px solid rgba(74,222,128,0.2);
+      border-radius: 10px;
+      margin-bottom: 16px;
+    }
+
+    /* Progress bars */
+    .racer-row { margin-bottom: 14px; }
+    .racer-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 5px;
+    }
+    .racer-name { font-size: 0.875rem; font-weight: 500; }
+    .racer-name.me { color: #818cf8; }
+    .racer-pct { font-size: 0.75rem; color: #475569; }
+    .racer-pct.done { color: #4ade80; }
+    .track { background: #0d0d14; border-radius: 100px; height: 8px; overflow: hidden; }
+    .fill {
+      height: 100%;
+      border-radius: 100px;
+      background: linear-gradient(90deg, #818cf8, #6d76e5);
+      transition: width 0.12s ease-out;
+    }
+    .fill.done { background: linear-gradient(90deg, #4ade80, #22c55e); }
+
+    /* Results */
+    .results-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 4px; }
+    .results-sub { color: #475569; font-size: 0.875rem; margin-bottom: 20px; }
+    .result-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      background: #0d0d14;
+      border: 1px solid #1e1e30;
+      border-radius: 10px;
+      margin-bottom: 8px;
+    }
+    .result-row.first { border-color: rgba(251,191,36,0.3); background: rgba(251,191,36,0.04); }
+    .result-rank { font-size: 1.3rem; width: 32px; text-align: center; flex-shrink: 0; }
+    .result-info { flex: 1; min-width: 0; }
+    .result-name { font-weight: 500; }
+    .result-name.me { color: #818cf8; }
+    .result-time { font-size: 0.75rem; color: #475569; margin-top: 2px; }
+    .result-wpm { font-size: 1.1rem; font-weight: 700; color: #4ade80; white-space: nowrap; }
+    .result-wpm small { font-size: 0.65rem; font-weight: 400; color: #475569; }
+    .result-dnf { color: #334155; font-style: italic; font-size: 0.875rem; }
+    .return-notice { text-align: center; color: #334155; font-size: 0.8rem; margin-top: 16px; }
+
+    #hidden-input {
+      position: fixed;
+      top: -9999px;
+      left: -9999px;
+      opacity: 0;
+      width: 1px;
+      height: 1px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Join screen -->
+<div class="screen" id="join-screen">
+  <h1>⌨️ Typing Race</h1>
+  <p class="subtitle">Race your friends in real time</p>
+  <div class="card">
+    <input type="text" id="name-input" placeholder="Your name..." maxlength="20" />
+    <button class="btn" id="join-btn">Join the Race</button>
+  </div>
+</div>
+
+<!-- Lobby screen -->
+<div class="screen hidden" id="lobby-screen">
+  <h1>⌨️ Typing Race</h1>
+  <p class="subtitle" id="lobby-subtitle">Waiting for players</p>
+  <div class="card">
+    <div id="countdown-wrap" class="countdown-wrap hidden">
+      <div class="countdown-num" id="countdown-num">5</div>
+      <div class="countdown-label">Get ready!</div>
+    </div>
+    <div class="player-chips">
+      <div class="section-label">In lobby</div>
+      <div id="lobby-players"></div>
+    </div>
+    <div class="lobby-status" id="lobby-status"></div>
+  </div>
+</div>
+
+<!-- Race screen -->
+<div class="screen hidden" id="race-screen">
+  <h1>⌨️ Typing Race</h1>
+  <div class="race-header">
+    <div class="stat-box">
+      <div class="stat-val" id="wpm-val">—</div>
+      <div class="stat-label">WPM</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-val" id="pct-val">0%</div>
+      <div class="stat-label">Progress</div>
+    </div>
+  </div>
+  <div id="finished-banner" class="finished-banner hidden"></div>
+  <div class="text-display" id="text-display">
+    <span class="click-hint">click to focus</span>
+  </div>
+  <div class="section-label">Racers</div>
+  <div id="racer-bars"></div>
+</div>
+
+<!-- Results screen -->
+<div class="screen hidden" id="results-screen">
+  <h1>⌨️ Typing Race</h1>
+  <div class="card">
+    <div class="results-title" id="results-title">Race Complete!</div>
+    <div class="results-sub" id="results-sub">Final standings</div>
+    <div id="results-list"></div>
+    <div class="return-notice" id="return-notice"></div>
+  </div>
+</div>
+
+<input type="text" id="hidden-input"
+  autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+
+<script>
+  const $ = id => document.getElementById(id);
+
+  const screens = {
+    join: $('join-screen'),
+    lobby: $('lobby-screen'),
+    race: $('race-screen'),
+    results: $('results-screen'),
+  };
+  function show(name) {
+    Object.values(screens).forEach(s => s.classList.add('hidden'));
+    screens[name].classList.remove('hidden');
+  }
+
+  const MIN_PLAYERS = 2;
+
+  let myId = null;
+  let targetText = '';
+  let raceStart = null;
+  let myFinished = false;
+  let correctCount = 0;
+  let wpmTimer = null;
+  let returnTimer = null;
+  let progressThrottle = null;
+  let lastSent = -1;
+
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(`${proto}//${location.host}`);
+
+  ws.addEventListener('message', e => {
+    const msg = JSON.parse(e.data);
+    handlers[msg.type]?.(msg);
+  });
+
+  const handlers = {
+    hello(msg) {
+      myId = msg.id;
+    },
+
+    lobby_update(msg) {
+      clearInterval(returnTimer);
+      show('lobby');
+      const counting = msg.gameState === 'countdown';
+      $('countdown-wrap').classList.toggle('hidden', !counting);
+      if (counting) $('countdown-num').textContent = msg.countdown;
+
+      $('lobby-subtitle').textContent = counting ? 'Get ready!' : 'Waiting for players';
+
+      const need = MIN_PLAYERS - msg.players.length;
+      $('lobby-status').textContent = need > 0
+        ? `Waiting for ${need} more player${need > 1 ? 's' : ''}…`
+        : counting ? '' : 'Starting soon!';
+
+      $('lobby-players').innerHTML = msg.players.map(p => `
+        <span class="chip${p.id === myId ? ' me' : ''}">
+          <span class="dot"></span>${p.name}${p.id === myId ? ' (you)' : ''}
+        </span>
+      `).join('');
+    },
+
+    race_start(msg) {
+      clearInterval(wpmTimer);
+      clearInterval(returnTimer);
+
+      targetText = msg.text;
+      raceStart = Date.now();
+      myFinished = false;
+      correctCount = 0;
+      lastSent = -1;
+
+      buildTextDisplay();
+      updateRacers(msg.players, targetText.length);
+
+      $('finished-banner').classList.add('hidden');
+      $('wpm-val').textContent = '—';
+      $('pct-val').textContent = '0%';
+
+      show('race');
+      focusInput();
+      wpmTimer = setInterval(updateStats, 333);
+    },
+
+    race_update(msg) {
+      updateRacers(msg.players, msg.totalChars);
+    },
+
+    race_end(msg) {
+      clearInterval(wpmTimer);
+      showResults(msg.results);
+    },
+  };
+
+  // Join
+  $('join-btn').addEventListener('click', doJoin);
+  $('name-input').addEventListener('keydown', e => e.key === 'Enter' && doJoin());
+
+  function doJoin() {
+    const name = $('name-input').value.trim();
+    if (!name) { $('name-input').focus(); return; }
+    ws.send(JSON.stringify({ type: 'join', name }));
+  }
+
+  // Typing input
+  const hiddenInput = $('hidden-input');
+  const textDisplay = $('text-display');
+
+  textDisplay.addEventListener('click', focusInput);
+  hiddenInput.addEventListener('focus', () => textDisplay.classList.add('focused'));
+  hiddenInput.addEventListener('blur', () => textDisplay.classList.remove('focused'));
+
+  hiddenInput.addEventListener('input', () => {
+    if (myFinished) return;
+    updateTextDisplay(hiddenInput.value);
+    scheduleProgress();
+  });
+
+  function focusInput() {
+    if (!myFinished) hiddenInput.focus();
+  }
+
+  function buildTextDisplay() {
+    textDisplay.innerHTML = '';
+
+    targetText.split('').forEach((ch, i) => {
+      const span = document.createElement('span');
+      span.textContent = ch;
+      if (i === 0) span.className = 'cursor';
+      textDisplay.appendChild(span);
+    });
+
+    const hint = document.createElement('span');
+    hint.className = 'click-hint';
+    hint.textContent = 'click to focus';
+    textDisplay.appendChild(hint);
+
+    hiddenInput.value = '';
+  }
+
+  function updateTextDisplay(typed) {
+    const spans = [...textDisplay.querySelectorAll('span:not(.click-hint)')];
+
+    correctCount = 0;
+    for (let i = 0; i < typed.length && i < targetText.length; i++) {
+      if (typed[i] === targetText[i]) correctCount++;
+      else break;
+    }
+
+    spans.forEach((span, i) => {
+      if (i < typed.length) {
+        span.className = typed[i] === targetText[i] ? 'correct' : 'wrong';
+      } else if (i === typed.length) {
+        span.className = 'cursor';
+      } else {
+        span.className = '';
+      }
+    });
+
+    if (correctCount >= targetText.length) {
+      myFinished = true;
+      hiddenInput.blur();
+      ws.send(JSON.stringify({ type: 'progress', chars: targetText.length }));
+      clearInterval(wpmTimer);
+      updateStats();
+      const banner = $('finished-banner');
+      banner.textContent = '🎉 Finished! Waiting for others…';
+      banner.classList.remove('hidden');
+    }
+  }
+
+  function scheduleProgress() {
+    if (progressThrottle) return;
+    progressThrottle = setTimeout(() => {
+      progressThrottle = null;
+      if (correctCount !== lastSent) {
+        lastSent = correctCount;
+        ws.send(JSON.stringify({ type: 'progress', chars: correctCount }));
+      }
+    }, 50);
+  }
+
+  function updateStats() {
+    if (!raceStart || correctCount === 0) return;
+    const mins = (Date.now() - raceStart) / 60000;
+    $('wpm-val').textContent = Math.round((correctCount / 5) / mins);
+    $('pct-val').textContent = Math.round((correctCount / targetText.length) * 100) + '%';
+  }
+
+  function updateRacers(players, totalChars) {
+    $('racer-bars').innerHTML = players.map(p => {
+      const pct = totalChars > 0 ? Math.min(100, Math.round((p.progress / totalChars) * 100)) : 0;
+      const isMe = p.id === myId;
+      return `
+        <div class="racer-row">
+          <div class="racer-meta">
+            <span class="racer-name${isMe ? ' me' : ''}">${p.name}${isMe ? ' (you)' : ''}</span>
+            <span class="racer-pct${p.finished ? ' done' : ''}">${p.finished ? '✓ done' : pct + '%'}</span>
+          </div>
+          <div class="track">
+            <div class="fill${p.finished ? ' done' : ''}" style="width:${pct}%"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function showResults(results) {
+    show('results');
+    const rankEmoji = ['🥇', '🥈', '🥉'];
+    const myResult = results.find(r => r.id === myId);
+
+    if (myResult?.rank === 1) $('results-title').textContent = '🏆 You won!';
+    else if (myResult?.rank) $('results-title').textContent = `You finished #${myResult.rank}!`;
+    else $('results-title').textContent = 'Race complete!';
+
+    $('results-list').innerHTML = results.map(r => {
+      const isMe = r.id === myId;
+      const rankDisplay = r.rank ? (rankEmoji[r.rank - 1] ?? `#${r.rank}`) : '—';
+      if (r.wpm) {
+        return `
+          <div class="result-row${r.rank === 1 ? ' first' : ''}">
+            <div class="result-rank">${rankDisplay}</div>
+            <div class="result-info">
+              <div class="result-name${isMe ? ' me' : ''}">${r.name}${isMe ? ' (you)' : ''}</div>
+              <div class="result-time">${(r.timeMs / 1000).toFixed(2)}s</div>
+            </div>
+            <div class="result-wpm">${r.wpm} <small>WPM</small></div>
+          </div>
+        `;
+      }
+      return `
+        <div class="result-row">
+          <div class="result-rank result-dnf">—</div>
+          <div class="result-info">
+            <div class="result-name${isMe ? ' me' : ''} result-dnf">${r.name}${isMe ? ' (you)' : ''}</div>
+          </div>
+          <div class="result-dnf">did not finish</div>
+        </div>
+      `;
+    }).join('');
+
+    let secs = 12;
+    $('return-notice').textContent = `Returning to lobby in ${secs}s…`;
+    returnTimer = setInterval(() => {
+      secs--;
+      $('return-notice').textContent = secs > 0 ? `Returning to lobby in ${secs}s…` : 'Returning to lobby…';
+      if (secs <= 0) clearInterval(returnTimer);
+    }, 1000);
+  }
+</script>
+</body>
+</html>

@@ -7,6 +7,10 @@ so all clients update simultaneously. The server runs a state machine across eac
 es. The frontend is vanilla JS with no framework: typing sounds are generated procedurally using the Web Audio API,
 and the video background is driven by the YouTube IFrame API.
 
+## Play
+
+https://typingrace.up.railway.app
+
 ## Running locally
 
 ```bash

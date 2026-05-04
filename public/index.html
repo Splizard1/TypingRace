@@ -285,6 +285,34 @@
     .result-dnf { color: #3d3020; font-style: italic; font-size: 0.875rem; }
     .return-notice { text-align: center; color: #3d3020; font-size: 0.8rem; margin-top: 16px; }
 
+    /* Room code bar */
+    .room-code-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #3d3020;
+    }
+    .room-code-label { font-family: 'Cinzel', serif; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 2px; color: #4a3e2e; white-space: nowrap; }
+    .room-code-val { font-family: 'Cinzel', serif; font-size: 1.4rem; font-weight: 700; color: #c9a84c; letter-spacing: 6px; flex: 1; }
+    .copy-btn {
+      background: none;
+      border: 1px solid #3d3020;
+      color: #6b5d47;
+      border-radius: 3px;
+      padding: 5px 12px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .copy-btn:hover { border-color: #6b5d47; color: #d4c5a0; }
+    .copy-btn.copied { color: #6daa6d; border-color: #6daa6d; }
+    .join-error { color: #b84a35; font-size: 0.85rem; margin-top: 10px; text-align: center; min-height: 1.2em; }
+    #code-input { text-transform: uppercase; letter-spacing: 6px; font-family: 'Cinzel', serif; text-align: center; }
+    #code-input::placeholder { letter-spacing: 1px; font-family: 'Segoe UI', system-ui, sans-serif; text-transform: none; }
+
     /* Guess screen */
     .guess-quote {
       font-style: italic;
@@ -349,7 +377,9 @@
   <p class="subtitle">Not all those who type are lost</p>
   <div class="card">
     <input type="text" id="name-input" placeholder="Your name, traveler..." maxlength="20" />
+    <input type="text" id="code-input" placeholder="Room code — leave blank to create new" maxlength="4" autocomplete="off" />
     <button class="btn" id="join-btn">Enter the Fellowship</button>
+    <div class="join-error hidden" id="join-error"></div>
   </div>
 </div>
 
@@ -358,6 +388,11 @@
   <h1>⚔️ The Typing Quest</h1>
   <p class="subtitle" id="lobby-subtitle">Gathering the fellowship</p>
   <div class="card">
+    <div class="room-code-bar">
+      <span class="room-code-label">Room</span>
+      <span class="room-code-val" id="room-code-val">—</span>
+      <button class="copy-btn" id="copy-btn">Copy link</button>
+    </div>
     <div id="countdown-wrap" class="countdown-wrap hidden">
       <div class="countdown-num" id="countdown-num">5</div>
       <div class="countdown-label">The quest begins</div>
@@ -431,6 +466,70 @@
   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
 
 <script>
+  // ── Audio ────────────────────────────────────────────────
+  let audioCtx = null;
+  function getAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+  function playClick(correct) {
+    const ctx = getAudio(), now = ctx.currentTime;
+    const osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    if (correct) {
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(1100, now);
+      osc.frequency.exponentialRampToValueAtTime(700, now + 0.04);
+      gain.gain.setValueAtTime(0.05, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+    } else {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(200, now);
+      osc.frequency.exponentialRampToValueAtTime(80, now + 0.08);
+      gain.gain.setValueAtTime(0.09, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+    }
+    osc.start(now); osc.stop(now + 0.12);
+  }
+  function playCountdownTick(isFinal) {
+    const ctx = getAudio(), now = ctx.currentTime;
+    const osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(isFinal ? 880 : 440, now);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+    osc.start(now); osc.stop(now + 0.2);
+  }
+  function playGo() {
+    const ctx = getAudio(), now = ctx.currentTime;
+    [523, 659, 784, 1047].forEach((freq, i) => {
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'triangle';
+      const t = now + i * 0.1;
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0.14, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+      osc.start(t); osc.stop(t + 0.35);
+    });
+  }
+  function playFinish() {
+    const ctx = getAudio(), now = ctx.currentTime;
+    [784, 1047, 1319, 1568].forEach((freq, i) => {
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'triangle';
+      const t = now + i * 0.13;
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0.16, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+      osc.start(t); osc.stop(t + 0.45);
+    });
+  }
+  // ─────────────────────────────────────────────────────────
+
   // YouTube background
   let ytPlayer;
   window.onYouTubeIframeAPIReady = function() {
@@ -442,7 +541,11 @@
         modestbranding: 1, rel: 0, playsinline: 1,
       },
       events: {
-        onReady(e) { e.target.mute(); e.target.playVideo(); }
+        onReady(e) { e.target.mute(); e.target.playVideo(); },
+        onStateChange(e) {
+          // YT.PlayerState.ENDED = 0 — restart manually as a loop fallback
+          if (e.data === 0) e.target.seekTo(0);
+        }
       }
     });
   };
@@ -467,8 +570,14 @@
 
   const MIN_PLAYERS = 2;
 
+  // Pre-fill from URL, otherwise ensure field is empty (prevents browser autocomplete)
+  const urlCode = new URLSearchParams(location.search).get('room');
+  $('code-input').value = urlCode ? urlCode.toUpperCase() : '';
+
   let myId = null;
   let myReady = false;
+  let currentRoomCode = null;
+  let lastCountdown = null;
   let targetText = '';
   let raceStart = null;
   let myFinished = false;
@@ -492,10 +601,31 @@
       myId = msg.id;
     },
 
+    error(msg) {
+      const el = $('join-error');
+      el.textContent = msg.message;
+      el.classList.remove('hidden');
+    },
+
     lobby_update(msg) {
       clearInterval(returnTimer);
       show('lobby');
+
+      // Room code display + URL
+      if (msg.code && msg.code !== currentRoomCode) {
+        currentRoomCode = msg.code;
+        $('room-code-val').textContent = msg.code;
+        history.replaceState(null, '', `?room=${msg.code}`);
+      }
+
       const counting = msg.gameState === 'countdown';
+
+      // Countdown beep
+      if (counting && msg.countdown !== lastCountdown) {
+        lastCountdown = msg.countdown;
+        playCountdownTick(msg.countdown === 1);
+      }
+      if (!counting) lastCountdown = null;
       $('countdown-wrap').classList.toggle('hidden', !counting);
       if (counting) $('countdown-num').textContent = msg.countdown;
 
@@ -530,6 +660,7 @@
     race_start(msg) {
       clearInterval(wpmTimer);
       clearInterval(returnTimer);
+      playGo();
 
       targetText = msg.text;
       raceStart = Date.now();
@@ -605,15 +736,30 @@
   // Join
   $('join-btn').addEventListener('click', doJoin);
   $('name-input').addEventListener('keydown', e => e.key === 'Enter' && doJoin());
+  $('code-input').addEventListener('keydown', e => e.key === 'Enter' && doJoin());
   $('ready-btn').addEventListener('click', () => ws.send(JSON.stringify({ type: 'ready' })));
   $('solo-btn').addEventListener('click', () => ws.send(JSON.stringify({ type: 'solo_start' })));
 
   function doJoin() {
     const name = $('name-input').value.trim();
     if (!name) { $('name-input').focus(); return; }
-    if (ytPlayer) { ytPlayer.unMute(); ytPlayer.setVolume(40); }
-    ws.send(JSON.stringify({ type: 'join', name }));
+    $('join-error').classList.add('hidden');
+    getAudio();
+    if (ytPlayer) { ytPlayer.playVideo(); ytPlayer.unMute(); ytPlayer.setVolume(40); }
+    const code = $('code-input').value.trim();
+    ws.send(JSON.stringify({ type: 'enter', name, code }));
   }
+
+  function copyRoom() {
+    const url = `${location.origin}${location.pathname}?room=${currentRoomCode}`;
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = $('copy-btn');
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy link'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+  $('copy-btn').addEventListener('click', copyRoom);
 
   // Typing
   const hiddenInput = $('hidden-input');
@@ -632,7 +778,10 @@
     if (!myFinished) hiddenInput.focus();
   }
 
+  let prevTypedLength = 0;
+
   function buildTextDisplay() {
+    prevTypedLength = 0;
     textDisplay.innerHTML = '';
     targetText.split('').forEach((ch, i) => {
       const span = document.createElement('span');
@@ -659,12 +808,21 @@
       else if (i === typed.length) span.className = 'cursor';
       else span.className = '';
     });
+
+    // Keystroke sound
+    if (typed.length > prevTypedLength) {
+      const i = typed.length - 1;
+      playClick(i < targetText.length && typed[i] === targetText[i]);
+    }
+    prevTypedLength = typed.length;
+
     if (correctCount >= targetText.length) {
       myFinished = true;
       hiddenInput.blur();
       ws.send(JSON.stringify({ type: 'progress', chars: targetText.length }));
       clearInterval(wpmTimer);
       updateStats();
+      playFinish();
       const banner = $('finished-banner');
       banner.textContent = '🧙 You have reached the end! Awaiting the fellowship…';
       banner.classList.remove('hidden');

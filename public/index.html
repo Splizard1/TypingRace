@@ -768,7 +768,7 @@
     if (!name) { $('name-input').focus(); return; }
     $('join-error').classList.add('hidden');
     getAudio();
-    if (ytPlayer) { ytPlayer.playVideo(); ytPlayer.unMute(); ytPlayer.setVolume(10); }
+    if (ytPlayer) { ytPlayer.playVideo(); ytPlayer.unMute(); ytPlayer.setVolume(1); }
     const code = $('code-input').value.trim();
     ws.send(JSON.stringify({ type: 'enter', name, code }));
   }

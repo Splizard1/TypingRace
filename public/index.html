@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Typing Race</title>
+  <title>The Typing Quest</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      background: #0d0d14;
-      color: #e2e8f0;
+      color: #d4c5a0;
       font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       min-height: 100vh;
       display: flex;
@@ -19,70 +19,105 @@
       padding: 24px 16px;
     }
 
+    /* Video background */
+    #video-bg {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      z-index: -2;
+      overflow: hidden;
+      pointer-events: none;
+      background: #0a0603;
+    }
+    #video-bg iframe,
+    #video-bg #yt-player {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 177.78vh;
+      height: 100vh;
+      min-width: 100vw;
+      min-height: 56.25vw;
+      pointer-events: none;
+    }
+    #overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: radial-gradient(ellipse at center, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.88) 100%);
+      z-index: -1;
+    }
+
     h1 {
-      font-size: 1.75rem;
-      font-weight: 800;
-      color: #818cf8;
-      letter-spacing: -0.5px;
+      font-family: 'Cinzel', serif;
+      font-size: 1.9rem;
+      font-weight: 700;
+      color: #c9a84c;
+      letter-spacing: 2px;
       margin-bottom: 4px;
+      text-shadow: 0 0 30px rgba(201,168,76,0.4);
     }
 
     .subtitle {
-      color: #475569;
-      font-size: 0.875rem;
+      color: #6b5d47;
+      font-size: 0.85rem;
       margin-bottom: 24px;
+      letter-spacing: 0.5px;
     }
 
     .screen { width: 100%; max-width: 680px; }
     .hidden { display: none !important; }
 
     .card {
-      background: #13131f;
-      border: 1px solid #1e1e30;
-      border-radius: 16px;
+      background: rgba(8, 6, 3, 0.88);
+      border: 1px solid #3d3020;
+      border-radius: 6px;
       padding: 28px;
+      backdrop-filter: blur(10px);
     }
 
     input[type="text"] {
       width: 100%;
-      background: #0d0d14;
-      border: 2px solid #1e1e30;
-      border-radius: 10px;
-      color: #e2e8f0;
+      background: rgba(5, 4, 2, 0.9);
+      border: 1px solid #3d3020;
+      border-radius: 4px;
+      color: #d4c5a0;
       font-size: 1rem;
       padding: 12px 16px;
       outline: none;
       transition: border-color 0.15s;
       margin-bottom: 12px;
     }
-    input[type="text"]:focus { border-color: #818cf8; }
+    input[type="text"]::placeholder { color: #4a3e2e; }
+    input[type="text"]:focus { border-color: #c9a84c; }
 
     .btn {
       display: block;
       width: 100%;
       padding: 12px;
-      background: #818cf8;
-      color: #fff;
+      background: #c9a84c;
+      color: #0a0603;
       border: none;
-      border-radius: 10px;
-      font-size: 1rem;
-      font-weight: 600;
+      border-radius: 4px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      font-family: 'Cinzel', serif;
+      letter-spacing: 1px;
       cursor: pointer;
       transition: background 0.15s, transform 0.1s;
     }
-    .btn:hover { background: #6d76e5; }
+    .btn:hover { background: #debb6a; }
     .btn:active { transform: scale(0.98); }
-    .btn.is-ready { background: #1e3a2f; color: #4ade80; border: 1px solid #4ade80; }
-    .btn.is-ready:hover { background: #17302600; }
-    .chip.ready { border-color: #4ade80; color: #4ade80; }
-    .chip.ready .dot { background: #4ade80; }
+    .btn.is-ready { background: rgba(5,4,2,0.9); color: #c9a84c; border: 1px solid #c9a84c; }
+    .btn.is-ready:hover { background: rgba(201,168,76,0.08); }
 
     /* Lobby */
     .section-label {
-      font-size: 0.7rem;
+      font-family: 'Cinzel', serif;
+      font-size: 0.65rem;
       text-transform: uppercase;
-      letter-spacing: 1.5px;
-      color: #334155;
+      letter-spacing: 2px;
+      color: #4a3e2e;
       margin-bottom: 10px;
     }
     .player-chips { margin-top: 20px; }
@@ -90,49 +125,69 @@
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      background: #0d0d14;
-      border: 1px solid #1e1e30;
-      border-radius: 100px;
+      background: rgba(5,4,2,0.7);
+      border: 1px solid #3d3020;
+      border-radius: 2px;
       padding: 6px 14px;
       font-size: 0.875rem;
       margin: 4px;
     }
-    .chip .dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; }
-    .chip.me { border-color: #818cf8; color: #818cf8; }
-    .chip.me .dot { background: #818cf8; }
+    .chip .dot { width: 6px; height: 6px; border-radius: 50%; background: #6b5d47; }
+    .chip.me { border-color: #c9a84c; color: #c9a84c; }
+    .chip.me .dot { background: #c9a84c; }
+    .chip.ready { border-color: #6daa6d; color: #6daa6d; }
+    .chip.ready .dot { background: #6daa6d; }
 
     .countdown-wrap { text-align: center; padding: 12px 0 20px; }
     .countdown-num {
+      font-family: 'Cinzel', serif;
       font-size: 5rem;
       font-weight: 900;
-      color: #818cf8;
+      color: #c9a84c;
       line-height: 1;
+      text-shadow: 0 0 40px rgba(201,168,76,0.5);
       animation: pulse 1s ease-in-out infinite;
     }
     @keyframes pulse {
       0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.75; transform: scale(0.93); }
+      50% { opacity: 0.7; transform: scale(0.93); }
     }
-    .countdown-label { color: #475569; margin-top: 8px; font-size: 0.875rem; }
-    .lobby-status { text-align: center; color: #475569; font-size: 0.875rem; margin-top: 16px; }
+    .countdown-label {
+      font-family: 'Cinzel', serif;
+      color: #6b5d47;
+      margin-top: 8px;
+      font-size: 0.8rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    .lobby-status { text-align: center; color: #6b5d47; font-size: 0.875rem; margin-top: 16px; }
+
+    /* Solo button */
+    #solo-btn {
+      background: rgba(5,4,2,0.8);
+      border: 1px solid #3d3020;
+      color: #6b5d47;
+    }
+    #solo-btn:hover { border-color: #6b5d47; color: #a09070; background: rgba(5,4,2,0.9); }
 
     /* Race */
     .race-header { display: flex; gap: 12px; margin-bottom: 16px; }
     .stat-box {
       flex: 1;
-      background: #13131f;
-      border: 1px solid #1e1e30;
-      border-radius: 12px;
+      background: rgba(8,6,3,0.88);
+      border: 1px solid #3d3020;
+      border-radius: 4px;
       padding: 12px 16px;
       text-align: center;
+      backdrop-filter: blur(10px);
     }
-    .stat-val { font-size: 1.6rem; font-weight: 700; color: #818cf8; }
-    .stat-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1.5px; color: #334155; margin-top: 2px; }
+    .stat-val { font-family: 'Cinzel', serif; font-size: 1.6rem; font-weight: 700; color: #c9a84c; }
+    .stat-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1.5px; color: #4a3e2e; margin-top: 2px; }
 
     .text-display {
-      background: #13131f;
-      border: 2px solid #1e1e30;
-      border-radius: 14px;
+      background: rgba(8,6,3,0.92);
+      border: 1px solid #3d3020;
+      border-radius: 4px;
       padding: 22px 24px;
       font-family: 'Courier New', monospace;
       font-size: 1.15rem;
@@ -144,27 +199,27 @@
       user-select: none;
       position: relative;
       word-break: break-word;
+      backdrop-filter: blur(10px);
     }
-    .text-display.focused { border-color: #4a4a6e; }
-    .text-display span { color: #3a3a5e; }
-    .text-display span.correct { color: #4ade80; }
-    .text-display span.wrong { color: #f87171; background: rgba(248,113,113,0.15); border-radius: 2px; }
+    .text-display.focused { border-color: #5a4a2a; }
+    .text-display span { color: #2e2518; }
+    .text-display span.correct { color: #6daa6d; }
+    .text-display span.wrong { color: #b84a35; background: rgba(184,74,53,0.15); border-radius: 2px; }
     .text-display span.cursor {
-      color: #e2e8f0;
-      border-left: 2px solid #818cf8;
+      color: #d4c5a0;
+      border-left: 2px solid #c9a84c;
       animation: blink 1s step-end infinite;
       margin-left: -1px;
     }
     @keyframes blink {
-      0%, 100% { border-color: #818cf8; }
+      0%, 100% { border-color: #c9a84c; }
       50% { border-color: transparent; }
     }
     .click-hint {
       position: absolute;
-      bottom: 8px;
-      right: 12px;
+      bottom: 8px; right: 12px;
       font-size: 0.7rem;
-      color: #1e1e30;
+      color: #2e2518;
       font-family: system-ui, sans-serif;
       pointer-events: none;
     }
@@ -173,156 +228,164 @@
       text-align: center;
       font-size: 1rem;
       font-weight: 600;
-      color: #4ade80;
+      font-family: 'Cinzel', serif;
+      letter-spacing: 1px;
+      color: #6daa6d;
       padding: 12px 16px;
-      background: rgba(74,222,128,0.07);
-      border: 1px solid rgba(74,222,128,0.2);
-      border-radius: 10px;
+      background: rgba(109,170,109,0.07);
+      border: 1px solid rgba(109,170,109,0.2);
+      border-radius: 4px;
       margin-bottom: 16px;
     }
 
     /* Progress bars */
     .racer-row { margin-bottom: 14px; }
-    .racer-meta {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 5px;
-    }
+    .racer-meta { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
     .racer-name { font-size: 0.875rem; font-weight: 500; }
-    .racer-name.me { color: #818cf8; }
-    .racer-pct { font-size: 0.75rem; color: #475569; }
-    .racer-pct.done { color: #4ade80; }
-    .track { background: #0d0d14; border-radius: 100px; height: 8px; overflow: hidden; }
+    .racer-name.me { color: #c9a84c; }
+    .racer-pct { font-size: 0.75rem; color: #4a3e2e; }
+    .racer-pct.done { color: #6daa6d; }
+    .track { background: rgba(5,4,2,0.8); border-radius: 100px; height: 7px; overflow: hidden; border: 1px solid #3d3020; }
     .fill {
       height: 100%;
       border-radius: 100px;
-      background: linear-gradient(90deg, #818cf8, #6d76e5);
+      background: linear-gradient(90deg, #7a6030, #c9a84c);
       transition: width 0.12s ease-out;
     }
-    .fill.done { background: linear-gradient(90deg, #4ade80, #22c55e); }
+    .fill.done { background: linear-gradient(90deg, #3a6b3a, #6daa6d); }
 
     /* Results */
-    .results-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 4px; }
-    .results-sub { color: #475569; font-size: 0.875rem; margin-bottom: 20px; }
+    .results-title {
+      font-family: 'Cinzel', serif;
+      font-size: 1.3rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+      color: #c9a84c;
+    }
+    .results-sub { color: #6b5d47; font-size: 0.875rem; margin-bottom: 20px; }
     .result-row {
       display: flex;
       align-items: center;
       gap: 14px;
       padding: 14px 16px;
-      background: #0d0d14;
-      border: 1px solid #1e1e30;
-      border-radius: 10px;
+      background: rgba(5,4,2,0.7);
+      border: 1px solid #3d3020;
+      border-radius: 4px;
       margin-bottom: 8px;
     }
-    .result-row.first { border-color: rgba(251,191,36,0.3); background: rgba(251,191,36,0.04); }
+    .result-row.first { border-color: rgba(201,168,76,0.4); background: rgba(201,168,76,0.05); }
     .result-rank { font-size: 1.3rem; width: 32px; text-align: center; flex-shrink: 0; }
     .result-info { flex: 1; min-width: 0; }
     .result-name { font-weight: 500; }
-    .result-name.me { color: #818cf8; }
-    .result-time { font-size: 0.75rem; color: #475569; margin-top: 2px; }
-    .result-wpm { font-size: 1.1rem; font-weight: 700; color: #4ade80; white-space: nowrap; }
-    .result-wpm small { font-size: 0.65rem; font-weight: 400; color: #475569; }
-    .result-dnf { color: #334155; font-style: italic; font-size: 0.875rem; }
-    .return-notice { text-align: center; color: #334155; font-size: 0.8rem; margin-top: 16px; }
+    .result-name.me { color: #c9a84c; }
+    .result-time { font-size: 0.75rem; color: #4a3e2e; margin-top: 2px; }
+    .result-wpm { font-family: 'Cinzel', serif; font-size: 1.1rem; font-weight: 700; color: #6daa6d; white-space: nowrap; }
+    .result-wpm small { font-size: 0.65rem; font-weight: 400; color: #4a3e2e; font-family: system-ui; }
+    .result-dnf { color: #3d3020; font-style: italic; font-size: 0.875rem; }
+    .return-notice { text-align: center; color: #3d3020; font-size: 0.8rem; margin-top: 16px; }
 
     /* Guess screen */
     .guess-quote {
       font-style: italic;
-      color: #475569;
+      color: #6b5d47;
       font-size: 0.9rem;
       line-height: 1.6;
-      border-left: 3px solid #1e1e30;
+      border-left: 2px solid #3d3020;
       padding-left: 14px;
       margin-bottom: 24px;
     }
     .guess-timer-wrap { text-align: center; margin-bottom: 20px; }
     .guess-timer {
       display: inline-block;
-      font-size: 1.5rem;
+      font-family: 'Cinzel', serif;
+      font-size: 1.4rem;
       font-weight: 700;
-      color: #818cf8;
-      width: 48px;
-      height: 48px;
-      line-height: 48px;
+      color: #c9a84c;
+      width: 52px;
+      height: 52px;
+      line-height: 50px;
       border-radius: 50%;
-      border: 2px solid #1e1e30;
+      border: 2px solid #3d3020;
     }
-    .guess-timer.urgent { color: #f87171; border-color: #f87171; }
+    .guess-timer.urgent { color: #b84a35; border-color: #b84a35; }
+    .reveal-correct { border-color: #6daa6d !important; }
     .guess-options { display: flex; flex-direction: column; gap: 10px; }
     .guess-option {
       padding: 14px 18px;
-      background: #0d0d14;
-      border: 2px solid #1e1e30;
-      border-radius: 10px;
+      background: rgba(5,4,2,0.8);
+      border: 1px solid #3d3020;
+      border-radius: 4px;
       cursor: pointer;
-      font-size: 1rem;
+      font-size: 0.95rem;
       text-align: left;
-      color: #e2e8f0;
+      color: #d4c5a0;
       width: 100%;
       transition: border-color 0.15s, background 0.15s;
     }
-    .guess-option:hover:not(:disabled) { border-color: #818cf8; background: #13131f; }
-    .guess-option.selected { border-color: #818cf8; color: #818cf8; }
-    .guess-option.reveal-correct { border-color: #4ade80 !important; background: rgba(74,222,128,0.08) !important; color: #4ade80 !important; }
-    .guess-option.reveal-wrong { border-color: #1e1e30 !important; color: #334155 !important; }
-    .guess-waiting { text-align: center; color: #475569; font-size: 0.875rem; margin-top: 16px; }
+    .guess-option:hover:not(:disabled) { border-color: #c9a84c; background: rgba(201,168,76,0.06); }
+    .guess-option.selected { border-color: #c9a84c; color: #c9a84c; }
+    .guess-option.reveal-correct { border-color: #6daa6d !important; background: rgba(109,170,109,0.08) !important; color: #6daa6d !important; }
+    .guess-option.reveal-wrong { border-color: #2e2518 !important; color: #3d3020 !important; }
+    .guess-waiting { text-align: center; color: #4a3e2e; font-size: 0.875rem; margin-top: 16px; font-style: italic; }
 
     #hidden-input {
       position: fixed;
-      top: -9999px;
-      left: -9999px;
-      opacity: 0;
-      width: 1px;
-      height: 1px;
+      top: -9999px; left: -9999px;
+      opacity: 0; width: 1px; height: 1px;
     }
   </style>
 </head>
 <body>
 
+<div id="video-bg">
+  <div id="yt-player"></div>
+</div>
+<div id="overlay"></div>
+
 <!-- Join screen -->
 <div class="screen" id="join-screen">
-  <h1>⌨️ Typing Race</h1>
-  <p class="subtitle">Race your friends in real time</p>
+  <h1>⚔️ The Typing Quest</h1>
+  <p class="subtitle">Not all those who type are lost</p>
   <div class="card">
-    <input type="text" id="name-input" placeholder="Your name..." maxlength="20" />
-    <button class="btn" id="join-btn">Join the Race</button>
+    <input type="text" id="name-input" placeholder="Your name, traveler..." maxlength="20" />
+    <button class="btn" id="join-btn">Enter the Fellowship</button>
   </div>
 </div>
 
 <!-- Lobby screen -->
 <div class="screen hidden" id="lobby-screen">
-  <h1>⌨️ Typing Race</h1>
-  <p class="subtitle" id="lobby-subtitle">Waiting for players</p>
+  <h1>⚔️ The Typing Quest</h1>
+  <p class="subtitle" id="lobby-subtitle">Gathering the fellowship</p>
   <div class="card">
     <div id="countdown-wrap" class="countdown-wrap hidden">
       <div class="countdown-num" id="countdown-num">5</div>
-      <div class="countdown-label">Get ready!</div>
+      <div class="countdown-label">The quest begins</div>
     </div>
     <div class="player-chips">
-      <div class="section-label">In lobby</div>
+      <div class="section-label">Fellowship</div>
       <div id="lobby-players"></div>
     </div>
     <div class="lobby-status" id="lobby-status"></div>
-    <button class="btn" id="ready-btn" style="margin-top:20px">✓ Ready Up</button>
-    <button class="btn hidden" id="solo-btn" style="margin-top:20px; background:#1e293b; border:1px solid #334155; color:#94a3b8;">Practice Solo</button>
+    <button class="btn" id="ready-btn" style="margin-top:20px">⚔️ I am ready</button>
+    <button class="btn hidden" id="solo-btn" style="margin-top:20px">Journey alone</button>
   </div>
 </div>
 
 <!-- Waiting screen -->
 <div class="screen hidden" id="waiting-screen">
-  <h1>⌨️ Typing Race</h1>
-  <p class="subtitle">Race in progress</p>
+  <h1>⚔️ The Typing Quest</h1>
+  <p class="subtitle">A quest is underway</p>
   <div class="card" style="text-align:center; padding: 40px 28px;">
-    <div style="font-size:2.5rem; margin-bottom:16px;">⏳</div>
-    <div style="font-weight:600; font-size:1.1rem; margin-bottom:8px;">Race in progress</div>
-    <div style="color:#475569; font-size:0.875rem;">Hang tight — you'll be added to the next lobby automatically.</div>
+    <div style="font-size:2.5rem; margin-bottom:16px;">🧙</div>
+    <div style="font-family:'Cinzel',serif; font-size:1rem; color:#c9a84c; margin-bottom:10px; letter-spacing:1px;">The fellowship is on their journey</div>
+    <div style="color:#4a3e2e; font-size:0.875rem; font-style:italic;">Rest here, traveler. You shall join the next quest.</div>
   </div>
 </div>
 
 <!-- Race screen -->
 <div class="screen hidden" id="race-screen">
-  <h1>⌨️ Typing Race</h1>
+  <h1>⚔️ The Typing Quest</h1>
   <div class="race-header">
     <div class="stat-box">
       <div class="stat-val" id="wpm-val">—</div>
@@ -330,37 +393,35 @@
     </div>
     <div class="stat-box">
       <div class="stat-val" id="pct-val">0%</div>
-      <div class="stat-label">Progress</div>
+      <div class="stat-label">Journey</div>
     </div>
   </div>
   <div id="finished-banner" class="finished-banner hidden"></div>
-  <div class="text-display" id="text-display">
-    <span class="click-hint">click to focus</span>
-  </div>
-  <div class="section-label">Racers</div>
+  <div class="text-display" id="text-display"></div>
+  <div class="section-label">Fellowship</div>
   <div id="racer-bars"></div>
 </div>
 
 <!-- Guess screen -->
 <div class="screen hidden" id="guess-screen">
-  <h1>⌨️ Typing Race</h1>
-  <p class="subtitle">Who said that?</p>
+  <h1>⚔️ The Typing Quest</h1>
+  <p class="subtitle">Name the speaker</p>
   <div class="card">
     <div class="guess-quote" id="guess-quote"></div>
     <div class="guess-timer-wrap">
       <span class="guess-timer" id="guess-timer">15</span>
     </div>
     <div class="guess-options" id="guess-options"></div>
-    <div class="guess-waiting hidden" id="guess-waiting">Waiting for others…</div>
+    <div class="guess-waiting hidden" id="guess-waiting">Awaiting the fellowship…</div>
   </div>
 </div>
 
 <!-- Results screen -->
 <div class="screen hidden" id="results-screen">
-  <h1>⌨️ Typing Race</h1>
+  <h1>⚔️ The Typing Quest</h1>
   <div class="card">
-    <div class="results-title" id="results-title">Race Complete!</div>
-    <div class="results-sub" id="results-sub">Final standings</div>
+    <div class="results-title" id="results-title">The Quest is Complete</div>
+    <div class="results-sub" id="results-sub">The fellowship's deeds</div>
     <div id="results-list"></div>
     <div class="return-notice" id="return-notice"></div>
   </div>
@@ -370,6 +431,25 @@
   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
 
 <script>
+  // YouTube background
+  let ytPlayer;
+  window.onYouTubeIframeAPIReady = function() {
+    ytPlayer = new YT.Player('yt-player', {
+      videoId: '8oXedDVaK4Q',
+      playerVars: {
+        autoplay: 1, mute: 1, loop: 1, playlist: '8oXedDVaK4Q',
+        controls: 0, disablekb: 1, fs: 0, iv_load_policy: 3,
+        modestbranding: 1, rel: 0, playsinline: 1,
+      },
+      events: {
+        onReady(e) { e.target.mute(); e.target.playVideo(); }
+      }
+    });
+  };
+  const ytScript = document.createElement('script');
+  ytScript.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(ytScript);
+
   const $ = id => document.getElementById(id);
 
   const screens = {
@@ -412,10 +492,6 @@
       myId = msg.id;
     },
 
-    waiting() {
-      show('waiting');
-    },
-
     lobby_update(msg) {
       clearInterval(returnTimer);
       show('lobby');
@@ -423,13 +499,13 @@
       $('countdown-wrap').classList.toggle('hidden', !counting);
       if (counting) $('countdown-num').textContent = msg.countdown;
 
-      $('lobby-subtitle').textContent = counting ? 'Get ready!' : 'Waiting for players';
+      $('lobby-subtitle').textContent = counting ? 'The quest draws near' : 'Gathering the fellowship';
 
       const need = MIN_PLAYERS - msg.players.length;
       const readyCount = msg.players.filter(p => p.ready).length;
       $('lobby-status').textContent = need > 0
-        ? `Waiting for ${need} more player${need > 1 ? 's' : ''}…`
-        : counting ? '' : `${readyCount} / ${msg.players.length} ready`;
+        ? `${need} more member${need > 1 ? 's' : ''} needed for the fellowship…`
+        : counting ? '' : `${readyCount} / ${msg.players.length} prepared`;
 
       const me = msg.players.find(p => p.id === myId);
       myReady = me?.ready ?? false;
@@ -437,7 +513,7 @@
       const readyBtn = $('ready-btn');
       readyBtn.classList.toggle('hidden', solo || counting);
       readyBtn.classList.toggle('is-ready', myReady);
-      readyBtn.textContent = myReady ? '✗ Cancel Ready' : '✓ Ready Up';
+      readyBtn.textContent = myReady ? '✗ Hold, I need more time' : '⚔️ I am ready';
       $('solo-btn').classList.toggle('hidden', !solo || counting);
 
       $('lobby-players').innerHTML = msg.players.map(p => `
@@ -445,6 +521,10 @@
           <span class="dot"></span>${p.name}${p.id === myId ? ' (you)' : ''} ${p.ready ? '✓' : ''}
         </span>
       `).join('');
+    },
+
+    waiting() {
+      show('waiting');
     },
 
     race_start(msg) {
@@ -511,10 +591,9 @@
       clearInterval(guessCountdown);
 
       const onGuess = !screens.guess.classList.contains('hidden');
-      const onRace = !screens.race.classList.contains('hidden');
+      const onRace  = !screens.race.classList.contains('hidden');
 
       if (onGuess) {
-        // Reveal correct answer for 2 seconds then show results
         revealAnswer(msg.correctIndex);
         setTimeout(() => showResults(msg.results, msg.solo, msg.correctAuthor), 2000);
       } else if (onRace) {
@@ -532,17 +611,17 @@
   function doJoin() {
     const name = $('name-input').value.trim();
     if (!name) { $('name-input').focus(); return; }
+    if (ytPlayer) { ytPlayer.unMute(); ytPlayer.setVolume(40); }
     ws.send(JSON.stringify({ type: 'join', name }));
   }
 
-  // Typing input
+  // Typing
   const hiddenInput = $('hidden-input');
   const textDisplay = $('text-display');
 
   textDisplay.addEventListener('click', focusInput);
   hiddenInput.addEventListener('focus', () => textDisplay.classList.add('focused'));
-  hiddenInput.addEventListener('blur', () => textDisplay.classList.remove('focused'));
-
+  hiddenInput.addEventListener('blur',  () => textDisplay.classList.remove('focused'));
   hiddenInput.addEventListener('input', () => {
     if (myFinished) return;
     updateTextDisplay(hiddenInput.value);
@@ -555,41 +634,31 @@
 
   function buildTextDisplay() {
     textDisplay.innerHTML = '';
-
     targetText.split('').forEach((ch, i) => {
       const span = document.createElement('span');
       span.textContent = ch;
       if (i === 0) span.className = 'cursor';
       textDisplay.appendChild(span);
     });
-
     const hint = document.createElement('span');
     hint.className = 'click-hint';
     hint.textContent = 'click to focus';
     textDisplay.appendChild(hint);
-
     hiddenInput.value = '';
   }
 
   function updateTextDisplay(typed) {
     const spans = [...textDisplay.querySelectorAll('span:not(.click-hint)')];
-
     correctCount = 0;
     for (let i = 0; i < typed.length && i < targetText.length; i++) {
       if (typed[i] === targetText[i]) correctCount++;
       else break;
     }
-
     spans.forEach((span, i) => {
-      if (i < typed.length) {
-        span.className = typed[i] === targetText[i] ? 'correct' : 'wrong';
-      } else if (i === typed.length) {
-        span.className = 'cursor';
-      } else {
-        span.className = '';
-      }
+      if (i < typed.length) span.className = typed[i] === targetText[i] ? 'correct' : 'wrong';
+      else if (i === typed.length) span.className = 'cursor';
+      else span.className = '';
     });
-
     if (correctCount >= targetText.length) {
       myFinished = true;
       hiddenInput.blur();
@@ -597,7 +666,7 @@
       clearInterval(wpmTimer);
       updateStats();
       const banner = $('finished-banner');
-      banner.textContent = '🎉 Finished! Waiting for others…';
+      banner.textContent = '🧙 You have reached the end! Awaiting the fellowship…';
       banner.classList.remove('hidden');
     }
   }
@@ -628,11 +697,9 @@
         <div class="racer-row">
           <div class="racer-meta">
             <span class="racer-name${isMe ? ' me' : ''}">${p.name}${isMe ? ' (you)' : ''}</span>
-            <span class="racer-pct${p.finished ? ' done' : ''}">${p.finished ? '✓ done' : pct + '%'}</span>
+            <span class="racer-pct${p.finished ? ' done' : ''}">${p.finished ? '✓ arrived' : pct + '%'}</span>
           </div>
-          <div class="track">
-            <div class="fill${p.finished ? ' done' : ''}" style="width:${pct}%"></div>
-          </div>
+          <div class="track"><div class="fill${p.finished ? ' done' : ''}" style="width:${pct}%"></div></div>
         </div>
       `;
     }).join('');
@@ -658,24 +725,25 @@
     if (solo && myResult?.wpm) {
       $('results-title').textContent = `${myResult.wpm} WPM`;
     } else if (myResult?.rank === 1) {
-      $('results-title').textContent = '🏆 You won!';
+      $('results-title').textContent = '⚔️ Victory!';
     } else if (myResult?.rank) {
-      $('results-title').textContent = `You finished #${myResult.rank}!`;
+      $('results-title').textContent = `You finished #${myResult.rank}`;
     } else {
-      $('results-title').textContent = 'Race complete!';
+      $('results-title').textContent = 'The Quest is Complete';
     }
+
     $('results-sub').innerHTML = correctAuthor
-      ? `Quote by <strong style="color:#e2e8f0">${correctAuthor}</strong>`
-      : 'Final standings';
+      ? `Spoken by <strong style="color:#c9a84c">${correctAuthor}</strong>`
+      : "The fellowship's deeds";
 
     $('results-list').innerHTML = results.map(r => {
       const isMe = r.id === myId;
       const rankDisplay = r.rank ? (rankEmoji[r.rank - 1] ?? `#${r.rank}`) : '—';
       const guessTag = r.guessed
         ? (r.guessCorrect
-            ? `<span style="color:#4ade80;font-size:0.75rem">✓ got it</span>`
-            : `<span style="color:#f87171;font-size:0.75rem">✗ wrong</span>`)
-        : `<span style="color:#334155;font-size:0.75rem">no guess</span>`;
+            ? `<span style="color:#6daa6d;font-size:0.75rem">✓ knew it</span>`
+            : `<span style="color:#b84a35;font-size:0.75rem">✗ fooled</span>`)
+        : `<span style="color:#3d3020;font-size:0.75rem">no guess</span>`;
       if (r.wpm) {
         return `
           <div class="result-row${r.rank === 1 ? ' first' : ''}">
@@ -694,16 +762,16 @@
           <div class="result-info">
             <div class="result-name${isMe ? ' me' : ''} result-dnf">${r.name}${isMe ? ' (you)' : ''} ${guessTag}</div>
           </div>
-          <div class="result-dnf">did not finish</div>
+          <div class="result-dnf">did not complete the quest</div>
         </div>
       `;
     }).join('');
 
     let secs = 12;
-    $('return-notice').textContent = `Returning to lobby in ${secs}s…`;
+    $('return-notice').textContent = `Returning to the Shire in ${secs}s…`;
     returnTimer = setInterval(() => {
       secs--;
-      $('return-notice').textContent = secs > 0 ? `Returning to lobby in ${secs}s…` : 'Returning to lobby…';
+      $('return-notice').textContent = secs > 0 ? `Returning to the Shire in ${secs}s…` : 'Returning to the Shire…';
       if (secs <= 0) clearInterval(returnTimer);
     }, 1000);
   }

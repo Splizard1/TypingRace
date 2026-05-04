@@ -9,7 +9,7 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      color: #d4c5a0;
+      color: #e8d9b8;
       font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       min-height: 100vh;
       display: flex;
@@ -44,7 +44,7 @@
       position: fixed;
       top: 0; left: 0;
       width: 100%; height: 100%;
-      background: radial-gradient(ellipse at center, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.88) 100%);
+      background: radial-gradient(ellipse at center, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.95) 100%);
       z-index: -1;
     }
 
@@ -69,11 +69,12 @@
     .hidden { display: none !important; }
 
     .card {
-      background: rgba(8, 6, 3, 0.88);
-      border: 1px solid #3d3020;
+      background: rgba(5, 3, 1, 0.95);
+      border: 1px solid #4a3820;
       border-radius: 6px;
       padding: 28px;
-      backdrop-filter: blur(10px);
+      backdrop-filter: blur(20px);
+      box-shadow: 0 8px 40px rgba(0,0,0,0.7), 0 1px 0 rgba(201,168,76,0.08) inset;
     }
 
     input[type="text"] {
@@ -174,19 +175,20 @@
     .race-header { display: flex; gap: 12px; margin-bottom: 16px; }
     .stat-box {
       flex: 1;
-      background: rgba(8,6,3,0.88);
-      border: 1px solid #3d3020;
+      background: rgba(5,3,1,0.95);
+      border: 1px solid #4a3820;
       border-radius: 4px;
       padding: 12px 16px;
       text-align: center;
-      backdrop-filter: blur(10px);
+      backdrop-filter: blur(20px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
     }
     .stat-val { font-family: 'Cinzel', serif; font-size: 1.6rem; font-weight: 700; color: #c9a84c; }
     .stat-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1.5px; color: #4a3e2e; margin-top: 2px; }
 
     .text-display {
-      background: rgba(8,6,3,0.92);
-      border: 1px solid #3d3020;
+      background: rgba(5,3,1,0.96);
+      border: 1px solid #4a3820;
       border-radius: 4px;
       padding: 22px 24px;
       font-family: 'Courier New', monospace;
@@ -245,6 +247,7 @@
     .racer-name.me { color: #c9a84c; }
     .racer-pct { font-size: 0.75rem; color: #4a3e2e; }
     .racer-pct.done { color: #6daa6d; }
+    .track-wrapper { position: relative; padding: 8px 0; }
     .track { background: rgba(5,4,2,0.8); border-radius: 100px; height: 7px; overflow: hidden; border: 1px solid #3d3020; }
     .fill {
       height: 100%;
@@ -253,6 +256,26 @@
       transition: width 0.12s ease-out;
     }
     .fill.done { background: linear-gradient(90deg, #3a6b3a, #6daa6d); }
+    .racer-icon {
+      position: absolute;
+      top: 50%;
+      font-size: 1rem;
+      line-height: 1;
+      transform: translate(-50%, -50%);
+      transition: left 0.12s ease-out;
+      pointer-events: none;
+      filter: drop-shadow(0 0 6px rgba(201,168,76,0.7));
+    }
+    .racer-icon-inner { display: block; animation: iconBob 1s ease-in-out infinite; }
+    .racer-icon.done .racer-icon-inner { animation: iconGlow 1.2s ease-in-out infinite; }
+    @keyframes iconBob {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
+    }
+    @keyframes iconGlow {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 0.8; }
+    }
 
     /* Results */
     .results-title {
@@ -851,13 +874,22 @@
     $('racer-bars').innerHTML = players.map(p => {
       const pct = totalChars > 0 ? Math.min(100, Math.round((p.progress / totalChars) * 100)) : 0;
       const isMe = p.id === myId;
+      const icon = p.finished ? '✨' : '💍';
+      const wpmLabel = p.finished ? '✓ arrived' : (p.wpm > 0 ? `${p.wpm} WPM` : '—');
       return `
         <div class="racer-row">
           <div class="racer-meta">
             <span class="racer-name${isMe ? ' me' : ''}">${p.name}${isMe ? ' (you)' : ''}</span>
-            <span class="racer-pct${p.finished ? ' done' : ''}">${p.finished ? '✓ arrived' : pct + '%'}</span>
+            <span class="racer-pct${p.finished ? ' done' : ''}">${wpmLabel}</span>
           </div>
-          <div class="track"><div class="fill${p.finished ? ' done' : ''}" style="width:${pct}%"></div></div>
+          <div class="track-wrapper">
+            <div class="track">
+              <div class="fill${p.finished ? ' done' : ''}" style="width:${pct}%"></div>
+            </div>
+            <span class="racer-icon${p.finished ? ' done' : ''}" style="left:${pct}%">
+              <span class="racer-icon-inner">${icon}</span>
+            </span>
+          </div>
         </div>
       `;
     }).join('');

@@ -70,11 +70,13 @@ class Room {
   }
 
   racePayload() {
+    const elapsed = (Date.now() - this.raceStartTime) / 60000;
     return {
       type: 'race_update',
       totalChars: this.currentText.length,
       players: [...this.players.values()].map(p => ({
         id: p.id, name: p.name, progress: p.progress, finished: p.finished,
+        wpm: p.progress > 0 && elapsed > 0.05 ? Math.round((p.progress / 5) / elapsed) : 0,
       })),
     };
   }

@@ -490,6 +490,12 @@
 
 <script>
   // ── Audio ────────────────────────────────────────────────
+  const VOL_CLICK_CORRECT  = 0.01;
+  const VOL_CLICK_WRONG    = 0.02;
+  const VOL_COUNTDOWN_TICK = 0.04;
+  const VOL_GO             = 0.04;
+  const VOL_FINISH         = 0.05;
+
   let audioCtx = null;
   function getAudio() {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -504,13 +510,13 @@
       osc.type = 'square';
       osc.frequency.setValueAtTime(1100, now);
       osc.frequency.exponentialRampToValueAtTime(700, now + 0.04);
-      gain.gain.setValueAtTime(0.05, now);
+      gain.gain.setValueAtTime(VOL_CLICK_CORRECT, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
     } else {
       osc.type = 'sawtooth';
       osc.frequency.setValueAtTime(200, now);
       osc.frequency.exponentialRampToValueAtTime(80, now + 0.08);
-      gain.gain.setValueAtTime(0.09, now);
+      gain.gain.setValueAtTime(VOL_CLICK_WRONG, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
     }
     osc.start(now); osc.stop(now + 0.12);
@@ -521,7 +527,7 @@
     osc.connect(gain); gain.connect(ctx.destination);
     osc.type = 'sine';
     osc.frequency.setValueAtTime(isFinal ? 880 : 440, now);
-    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.setValueAtTime(VOL_COUNTDOWN_TICK, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
     osc.start(now); osc.stop(now + 0.2);
   }
@@ -533,7 +539,7 @@
       osc.type = 'triangle';
       const t = now + i * 0.1;
       osc.frequency.setValueAtTime(freq, t);
-      gain.gain.setValueAtTime(0.14, t);
+      gain.gain.setValueAtTime(VOL_GO, t);
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
       osc.start(t); osc.stop(t + 0.35);
     });
@@ -546,11 +552,12 @@
       osc.type = 'triangle';
       const t = now + i * 0.13;
       osc.frequency.setValueAtTime(freq, t);
-      gain.gain.setValueAtTime(0.16, t);
+      gain.gain.setValueAtTime(VOL_FINISH, t);
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
       osc.start(t); osc.stop(t + 0.45);
     });
   }
+  
   // ─────────────────────────────────────────────────────────
 
   // YouTube background

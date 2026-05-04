@@ -226,6 +226,48 @@
     .result-dnf { color: #334155; font-style: italic; font-size: 0.875rem; }
     .return-notice { text-align: center; color: #334155; font-size: 0.8rem; margin-top: 16px; }
 
+    /* Guess screen */
+    .guess-quote {
+      font-style: italic;
+      color: #475569;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      border-left: 3px solid #1e1e30;
+      padding-left: 14px;
+      margin-bottom: 24px;
+    }
+    .guess-timer-wrap { text-align: center; margin-bottom: 20px; }
+    .guess-timer {
+      display: inline-block;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #818cf8;
+      width: 48px;
+      height: 48px;
+      line-height: 48px;
+      border-radius: 50%;
+      border: 2px solid #1e1e30;
+    }
+    .guess-timer.urgent { color: #f87171; border-color: #f87171; }
+    .guess-options { display: flex; flex-direction: column; gap: 10px; }
+    .guess-option {
+      padding: 14px 18px;
+      background: #0d0d14;
+      border: 2px solid #1e1e30;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 1rem;
+      text-align: left;
+      color: #e2e8f0;
+      width: 100%;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .guess-option:hover:not(:disabled) { border-color: #818cf8; background: #13131f; }
+    .guess-option.selected { border-color: #818cf8; color: #818cf8; }
+    .guess-option.reveal-correct { border-color: #4ade80 !important; background: rgba(74,222,128,0.08) !important; color: #4ade80 !important; }
+    .guess-option.reveal-wrong { border-color: #1e1e30 !important; color: #334155 !important; }
+    .guess-waiting { text-align: center; color: #475569; font-size: 0.875rem; margin-top: 16px; }
+
     #hidden-input {
       position: fixed;
       top: -9999px;
@@ -263,6 +305,7 @@
     </div>
     <div class="lobby-status" id="lobby-status"></div>
     <button class="btn" id="ready-btn" style="margin-top:20px">✓ Ready Up</button>
+    <button class="btn hidden" id="solo-btn" style="margin-top:20px; background:#1e293b; border:1px solid #334155; color:#94a3b8;">Practice Solo</button>
   </div>
 </div>
 
@@ -298,6 +341,20 @@
   <div id="racer-bars"></div>
 </div>
 
+<!-- Guess screen -->
+<div class="screen hidden" id="guess-screen">
+  <h1>⌨️ Typing Race</h1>
+  <p class="subtitle">Who said that?</p>
+  <div class="card">
+    <div class="guess-quote" id="guess-quote"></div>
+    <div class="guess-timer-wrap">
+      <span class="guess-timer" id="guess-timer">15</span>
+    </div>
+    <div class="guess-options" id="guess-options"></div>
+    <div class="guess-waiting hidden" id="guess-waiting">Waiting for others…</div>
+  </div>
+</div>
+
 <!-- Results screen -->
 <div class="screen hidden" id="results-screen">
   <h1>⌨️ Typing Race</h1>
@@ -320,6 +377,7 @@
     lobby: $('lobby-screen'),
     waiting: $('waiting-screen'),
     race: $('race-screen'),
+    guess: $('guess-screen'),
     results: $('results-screen'),
   };
   function show(name) {
@@ -337,6 +395,7 @@
   let correctCount = 0;
   let wpmTimer = null;
   let returnTimer = null;
+  let guessCountdown = null;
   let progressThrottle = null;
   let lastSent = -1;
 
@@ -374,9 +433,12 @@
 
       const me = msg.players.find(p => p.id === myId);
       myReady = me?.ready ?? false;
+      const solo = msg.players.length === 1;
       const readyBtn = $('ready-btn');
+      readyBtn.classList.toggle('hidden', solo || counting);
       readyBtn.classList.toggle('is-ready', myReady);
       readyBtn.textContent = myReady ? '✗ Cancel Ready' : '✓ Ready Up';
+      $('solo-btn').classList.toggle('hidden', !solo || counting);
 
       $('lobby-players').innerHTML = msg.players.map(p => `
         <span class="chip${p.id === myId ? ' me' : ''}${p.ready ? ' ready' : ''}">
@@ -412,9 +474,52 @@
       updateRacers(msg.players, msg.totalChars);
     },
 
+    guess_phase(msg) {
+      show('guess');
+      $('guess-quote').textContent = targetText;
+      $('guess-waiting').classList.add('hidden');
+
+      $('guess-options').innerHTML = msg.options.map((author, i) => `
+        <button class="guess-option" data-index="${i}">${author}</button>
+      `).join('');
+
+      [...document.querySelectorAll('.guess-option')].forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (btn.disabled) return;
+          document.querySelectorAll('.guess-option').forEach(b => { b.disabled = true; });
+          btn.classList.add('selected');
+          $('guess-waiting').classList.remove('hidden');
+          ws.send(JSON.stringify({ type: 'guess', index: parseInt(btn.dataset.index) }));
+        });
+      });
+
+      let secs = Math.round(msg.timeoutMs / 1000);
+      const timerEl = $('guess-timer');
+      timerEl.textContent = secs;
+      timerEl.className = 'guess-timer';
+      clearInterval(guessCountdown);
+      guessCountdown = setInterval(() => {
+        secs--;
+        timerEl.textContent = secs;
+        timerEl.classList.toggle('urgent', secs <= 5);
+        if (secs <= 0) clearInterval(guessCountdown);
+      }, 1000);
+    },
+
     race_end(msg) {
       clearInterval(wpmTimer);
-      if (!screens.race.classList.contains('hidden')) showResults(msg.results);
+      clearInterval(guessCountdown);
+
+      const onGuess = !screens.guess.classList.contains('hidden');
+      const onRace = !screens.race.classList.contains('hidden');
+
+      if (onGuess) {
+        // Reveal correct answer for 2 seconds then show results
+        revealAnswer(msg.correctIndex);
+        setTimeout(() => showResults(msg.results, msg.solo, msg.correctAuthor), 2000);
+      } else if (onRace) {
+        showResults(msg.results, msg.solo, msg.correctAuthor);
+      }
     },
   };
 
@@ -422,6 +527,7 @@
   $('join-btn').addEventListener('click', doJoin);
   $('name-input').addEventListener('keydown', e => e.key === 'Enter' && doJoin());
   $('ready-btn').addEventListener('click', () => ws.send(JSON.stringify({ type: 'ready' })));
+  $('solo-btn').addEventListener('click', () => ws.send(JSON.stringify({ type: 'solo_start' })));
 
   function doJoin() {
     const name = $('name-input').value.trim();
@@ -532,24 +638,50 @@
     }).join('');
   }
 
-  function showResults(results) {
+  function revealAnswer(correctIndex) {
+    document.querySelectorAll('.guess-option').forEach((btn, i) => {
+      btn.disabled = true;
+      btn.classList.remove('selected');
+      btn.classList.add(i === correctIndex ? 'reveal-correct' : 'reveal-wrong');
+    });
+    $('guess-waiting').classList.add('hidden');
+    const timerEl = $('guess-timer');
+    timerEl.textContent = '✓';
+    timerEl.className = 'guess-timer reveal-correct';
+  }
+
+  function showResults(results, solo = false, correctAuthor = '') {
     show('results');
     const rankEmoji = ['🥇', '🥈', '🥉'];
     const myResult = results.find(r => r.id === myId);
 
-    if (myResult?.rank === 1) $('results-title').textContent = '🏆 You won!';
-    else if (myResult?.rank) $('results-title').textContent = `You finished #${myResult.rank}!`;
-    else $('results-title').textContent = 'Race complete!';
+    if (solo && myResult?.wpm) {
+      $('results-title').textContent = `${myResult.wpm} WPM`;
+    } else if (myResult?.rank === 1) {
+      $('results-title').textContent = '🏆 You won!';
+    } else if (myResult?.rank) {
+      $('results-title').textContent = `You finished #${myResult.rank}!`;
+    } else {
+      $('results-title').textContent = 'Race complete!';
+    }
+    $('results-sub').innerHTML = correctAuthor
+      ? `Quote by <strong style="color:#e2e8f0">${correctAuthor}</strong>`
+      : 'Final standings';
 
     $('results-list').innerHTML = results.map(r => {
       const isMe = r.id === myId;
       const rankDisplay = r.rank ? (rankEmoji[r.rank - 1] ?? `#${r.rank}`) : '—';
+      const guessTag = r.guessed
+        ? (r.guessCorrect
+            ? `<span style="color:#4ade80;font-size:0.75rem">✓ got it</span>`
+            : `<span style="color:#f87171;font-size:0.75rem">✗ wrong</span>`)
+        : `<span style="color:#334155;font-size:0.75rem">no guess</span>`;
       if (r.wpm) {
         return `
           <div class="result-row${r.rank === 1 ? ' first' : ''}">
             <div class="result-rank">${rankDisplay}</div>
             <div class="result-info">
-              <div class="result-name${isMe ? ' me' : ''}">${r.name}${isMe ? ' (you)' : ''}</div>
+              <div class="result-name${isMe ? ' me' : ''}">${r.name}${isMe ? ' (you)' : ''} ${guessTag}</div>
               <div class="result-time">${(r.timeMs / 1000).toFixed(2)}s</div>
             </div>
             <div class="result-wpm">${r.wpm} <small>WPM</small></div>
@@ -560,7 +692,7 @@
         <div class="result-row">
           <div class="result-rank result-dnf">—</div>
           <div class="result-info">
-            <div class="result-name${isMe ? ' me' : ''} result-dnf">${r.name}${isMe ? ' (you)' : ''}</div>
+            <div class="result-name${isMe ? ' me' : ''} result-dnf">${r.name}${isMe ? ' (you)' : ''} ${guessTag}</div>
           </div>
           <div class="result-dnf">did not finish</div>
         </div>

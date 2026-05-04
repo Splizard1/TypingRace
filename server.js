@@ -9,7 +9,7 @@ const wss = new WebSocket.Server({ server });
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-const TEXTS = require('./quotes.json').map(q => q.quote.trim());
+const QUOTES = require('./quotes.json').map(q => ({ text: q.quote.trim(), author: q.author }));
 
 const COUNTDOWN_SECS = 5;
 const RESULTS_DURATION_MS = 12000;
@@ -23,6 +23,14 @@ let countdownTimer = null;
 let countdownVal = COUNTDOWN_SECS;
 let raceStartTime = null;
 let idCounter = 0;
+let isSolo = false;
+let currentQuote = null;
+let guessOptions = [];
+let correctOptionIndex = -1;
+let playerGuesses = new Map(); // playerId -> optionIndex
+let guessTimer = null;
+let pendingResults = null;
+const GUESS_TIMEOUT_MS = 15000;
 
 function broadcast(data) {
   const msg = JSON.stringify(data);
@@ -89,9 +97,11 @@ function cancelCountdown() {
   broadcast(lobbyPayload());
 }
 
-function startRace() {
+function startRace(solo = false) {
+  isSolo = solo;
   gameState = 'racing';
-  currentText = TEXTS[Math.floor(Math.random() * TEXTS.length)];
+  currentQuote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+  currentText = currentQuote.text;
   raceStartTime = Date.now();
   players.forEach(p => { p.progress = 0; p.finished = false; p.finishTime = null; p.ready = false; });
   broadcast({
@@ -102,24 +112,52 @@ function startRace() {
 }
 
 function endRace() {
-  gameState = 'ended';
+  gameState = 'guessing';
   const sorted = [...players.values()]
     .filter(p => p.finished)
     .sort((a, b) => a.finishTime - b.finishTime);
   const dnf = [...players.values()].filter(p => !p.finished);
 
-  const results = [
+  pendingResults = [
     ...sorted.map((p, i) => ({
-      rank: i + 1,
-      id: p.id,
-      name: p.name,
+      rank: i + 1, id: p.id, name: p.name,
       timeMs: p.finishTime - raceStartTime,
       wpm: Math.round((currentText.split(' ').length / ((p.finishTime - raceStartTime) / 60000))),
     })),
     ...dnf.map(p => ({ rank: null, id: p.id, name: p.name, timeMs: null, wpm: null })),
   ];
 
-  broadcast({ type: 'race_end', results });
+  // Build 3 options: correct author + 2 random wrong ones
+  const correct = currentQuote.author;
+  const others = [...new Set(QUOTES.map(q => q.author).filter(a => a !== correct))];
+  const wrong = others.sort(() => Math.random() - 0.5).slice(0, 2);
+  guessOptions = [...wrong, correct].sort(() => Math.random() - 0.5);
+  correctOptionIndex = guessOptions.indexOf(correct);
+  playerGuesses.clear();
+
+  broadcast({ type: 'guess_phase', options: guessOptions, timeoutMs: GUESS_TIMEOUT_MS });
+
+  guessTimer = setTimeout(resolveGuesses, GUESS_TIMEOUT_MS);
+}
+
+function resolveGuesses() {
+  clearTimeout(guessTimer);
+  guessTimer = null;
+
+  const results = pendingResults.map(r => ({
+    ...r,
+    guessCorrect: playerGuesses.get(r.id) === correctOptionIndex,
+    guessed: playerGuesses.has(r.id),
+  }));
+
+  gameState = 'ended';
+  broadcast({
+    type: 'race_end',
+    results,
+    solo: isSolo,
+    correctIndex: correctOptionIndex,
+    correctAuthor: currentQuote.author,
+  });
 
   setTimeout(() => {
     if (gameState !== 'ended') return;
@@ -132,6 +170,10 @@ function endRace() {
 
 function checkAllFinished() {
   if (players.size > 0 && [...players.values()].every(p => p.finished)) endRace();
+}
+
+function checkAllGuessed() {
+  if (players.size === 0 || [...players.values()].every(p => playerGuesses.has(p.id))) resolveGuesses();
 }
 
 wss.on('connection', ws => {
@@ -156,11 +198,25 @@ wss.on('connection', ws => {
       return;
     }
 
+    if (msg.type === 'solo_start') {
+      if (gameState === 'lobby' && players.size === 1 && player.name) startRace(true);
+      return;
+    }
+
     if (msg.type === 'ready') {
       if (!player.name || gameState === 'racing') return;
       player.ready = !player.ready;
       checkAllReady();
       broadcast(lobbyPayload());
+      return;
+    }
+
+    if (msg.type === 'guess') {
+      if (gameState !== 'guessing' || !player.name || playerGuesses.has(player.id)) return;
+      const idx = Number(msg.index);
+      if (!Number.isFinite(idx) || idx < 0 || idx > 2) return;
+      playerGuesses.set(player.id, idx);
+      checkAllGuessed();
       return;
     }
 
@@ -187,6 +243,8 @@ wss.on('connection', ws => {
     } else if (gameState === 'racing') {
       broadcast(racePayload());
       checkAllFinished();
+    } else if (gameState === 'guessing') {
+      checkAllGuessed();
     }
   });
 });
